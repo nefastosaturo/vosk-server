@@ -42,11 +42,12 @@ async def run_test(uri):
         ws = await stack.enter_async_context(_polite_websocket(ws))
         p = stack.enter_context(_pyaudio())
         s = stack.enter_context(_pyaudio_open_stream(p,
-            format = paInt16, 
+            format = paInt16,
             channels = 1,
-            rate = 8000,
-            input = True, 
+            rate = 16000,
+            input = True,
             frames_per_buffer = 8000))
+        await ws.send('''{"config" : { "sample_rate" : 16000.0}}''')
         while True:
             data = s.read(8000)
             if len(data) == 0:

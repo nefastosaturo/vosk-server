@@ -5,6 +5,7 @@ import os
 import sys
 import asyncio
 import pathlib
+from functools import partial
 import websockets
 import concurrent.futures
 import logging
@@ -18,14 +19,14 @@ def process_chunk(rec, message):
     else:
         return rec.PartialResult(), False
 
-async def recognize(websocket, path):
-    global model
+async def recognize(websocket, path, model_path):
     global spk_model
     global args
     global loop
     global pool
 
     rec = None
+    model = None
     phrase_list = None
     sample_rate = args.sample_rate
     show_words = args.show_words
@@ -53,6 +54,7 @@ async def recognize(websocket, path):
 
         # Create the recognizer, word list is temporary disabled since not every model supports it
         if not rec:
+            model = Model(model_path)
             if phrase_list:
                 rec = KaldiRecognizer(model, sample_rate, json.dumps(phrase_list, ensure_ascii=False))
             else:
@@ -64,7 +66,10 @@ async def recognize(websocket, path):
 
         response, stop = await loop.run_in_executor(pool, process_chunk, rec, message)
         await websocket.send(response)
-        if stop: break
+        if stop:
+            del model
+            del rec
+            break
 
 
 
@@ -104,14 +109,14 @@ def start():
     #     GpuInstantiate()
     # pool = concurrent.futures.ThreadPoolExecutor(initializer=thread_init)
 
-    model = Model(args.model_path)
+
     spk_model = SpkModel(args.spk_model_path) if args.spk_model_path else None
 
     pool = concurrent.futures.ThreadPoolExecutor((os.cpu_count() or 1))
     loop = asyncio.get_event_loop()
 
     start_server = websockets.serve(
-        recognize, args.interface, args.port)
+        partial(recognize,model_path=args.model_path), args.interface, args.port)
 
     logging.info("Listening on %s:%d", args.interface, args.port)
     loop.run_until_complete(start_server)

@@ -1,0 +1,12 @@
+FROM alphacep/kaldi-it:latest
+
+ENV MODEL_VERSION 0.4
+RUN apt update && apt install -y python3-tk \
+   && pip3 install matplotlib \
+   && pip3 install -U memory_profiler
+
+COPY websocket/run_pyws_memprof.sh /opt/vosk-server/websocket/run_pyws_memprof.sh
+
+RUN chmod +x /opt/vosk-server/websocket/run_pyws_memprof.sh
+
+CMD ["./run_pyws_memprof.sh"]
